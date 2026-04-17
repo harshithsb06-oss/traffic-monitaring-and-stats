@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDN Traffic Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #070b12;
+    --bg2: #0d1520;
+    --bg3: #111d2e;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --accent3: #ff6b35;
+    --text: #c8d8e8;
+    --text2: #5a7a9a;
+    --border: rgba(0,212,255,0.15);
+    --glow: 0 0 20px rgba(0,212,255,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* Header */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px; padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,157,0.1));
+    border: 1px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--glow);
+  }
+  .logo-icon svg { width: 24px; height: 24px; }
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+  h1 span { color: var(--accent); }
+  .subtitle { font-size: 12px; color: var(--text2); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+  .status-bar { display: flex; align-items: center; gap: 20px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text2); transition: all 0.3s;
+  }
+  .status-dot.live { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: pulse 2s infinite; }
+  .status-dot.error { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .status-text { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text2); }
+  .last-update { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text2); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 28px; background: var(--bg2); border-radius: 10px; padding: 4px; border: 1px solid var(--border); width: fit-content; }
+  .tab {
+    padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; color: var(--text2); letter-spacing: 0.3px;
+    border: none; background: none;
+  }
+  .tab.active { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Tab panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Stat cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; position: relative; overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+  .card:hover { border-color: rgba(0,212,255,0.35); transform: translateY(-2px); }
+  .card::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .card:hover::after { opacity: 1; }
+  .card-label { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .card-value { font-size: 28px; font-weight: 800; color: #fff; line-height: 1; }
+  .card-value.accent { color: var(--accent); }
+  .card-value.green { color: var(--accent2); }
+  .card-value.orange { color: var(--accent3); }
+  .card-sub { font-size: 11px; color: var(--text2); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Grid layout */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media(max-width:900px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+
+  /* Panels/boxes */
+  .box {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+  }
+  .box-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .box-title::before { content: ''; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  /* Chart container */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* Flow table */
+  .flow-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .flow-table th { color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .flow-table td { padding: 8px 10px; border-bottom: 1px solid rgba(0,212,255,0.05); color: var(--text); }
+  .flow-table tr:hover td { background: rgba(0,212,255,0.04); }
+  .flow-table tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .badge-blue { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .badge-green { background: rgba(0,255,157,0.12); color: var(--accent2); border: 1px solid rgba(0,255,157,0.3); }
+  .badge-orange { background: rgba(255,107,53,0.12); color: var(--accent3); border: 1px solid rgba(255,107,53,0.3); }
+
+  /* Switch selector */
+  .switch-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sw-btn {
+    padding: 5px 14px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    cursor: pointer; border: 1px solid var(--border); background: transparent;
+    color: var(--text2); font-family: 'JetBrains Mono', monospace; transition: all 0.2s;
+  }
+  .sw-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+
+  /* Port stats bars */
+  .port-row { margin-bottom: 12px; }
+  .port-label { display: flex; justify-content: space-between; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+  .port-label span:first-child { color: var(--text2); }
+  .port-label span:last-child { color: var(--text); }
+  .bar-track { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+  .bar-rx { background: linear-gradient(90deg, var(--accent), rgba(0,212,255,0.5)); }
+  .bar-tx { background: linear-gradient(90deg, var(--accent2), rgba(0,255,157,0.5)); margin-top: 3px; }
+
+  /* History timeline */
+  .timeline { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
+  .timeline::-webkit-scrollbar { width: 4px; }
+  .timeline::-webkit-scrollbar-track { background: transparent; }
+  .timeline::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .tl-item { display: flex; gap: 14px; align-items: flex-start; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; }
+  .tl-time { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text2); white-space: nowrap; min-width: 80px; }
+  .tl-content { font-size: 12px; color: var(--text); }
+  .tl-content strong { color: var(--accent2); }
+
+  /* No data */
+  .no-data { text-align: center; padding: 48px 20px; color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .no-data-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.3; }
+
+  /* Animations */
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="1.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <h1>SDN <span>Traffic</span> Monitor</h1>
+        <div class="subtitle">OpenFlow 1.3 · Ryu Controller · Mininet</div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText" class="status-text">Connecting...</span>
+      <span id="lastUpdate" class="last-update">--</span>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('live')">Live Stats</button>
+    <button class="tab" onclick="switchTab('flows')">Flow Table</button>
+    <button class="tab" onclick="switchTab('ports')">Port Stats</button>
+    <button class="tab" onclick="switchTab('history')">History</button>
+  </div>
+
+  <!-- LIVE TAB -->
+  <div id="tab-live" class="panel active">
+    <div class="cards" id="summaryCards">
+      <div class="card"><div class="card-label">Switches</div><div class="card-value accent" id="cSwitches">--</div><div class="card-sub">connected</div></div>
+      <div class="card"><div class="card-label">Total Flows</div><div class="card-value" id="cFlows">--</div><div class="card-sub">active rules</div></div>
+      <div class="card"><div class="card-label">Total Packets</div><div class="card-value green" id="cPackets">--</div><div class="card-sub">processed</div></div>
+      <div class="card"><div class="card-label">Total Bytes</div><div class="card-value orange" id="cBytes">--</div><div class="card-sub">transferred</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="box">
+        <div class="box-title">Packets Over Time</div>
+        <div class="chart-wrap"><canvas id="chartPackets"></canvas></div>
+      </div>
+      <div class="box">
+        <div class="box-title">Bytes Over Time</div>
+        <div class="chart-wrap"><canvas id="chartBytes"></canvas></div>
+      </div>
+    </div>
+    <div class="box">
+      <div class="box-title">Per-Switch Overview</div>
+      <div id="switchOverview" class="cards" style="margin-bottom:0"></div>
+    </div>
+  </div>
+
+  <!-- FLOWS TAB -->
+  <div id="tab-flows" class="panel">
+    <div class="box">
+      <div class="box-title">Flow Rules</div>
+      <div class="switch-tabs" id="flowSwitchTabs"></div>
+      <div id="flowTableWrap"></div>
+    </div>
+  </div>
+
+  <!-- PORTS TAB -->
+  <div id="tab-ports" class="panel">
+    <div class="box">
+      <div class="box-title">Port Statistics</div>
+      <div class="switch-tabs" id="portSwitchTabs"></div>
+      <div id="portStatsWrap"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" class="panel">
+    <div class="grid-2">
+      <div class="box">
+        <div class="box-title">Historical Packets</div>
+        <div class="chart-wrap"><canvas id="chartHistPackets"></canvas></div>
+      </div>
+      <div class="box">
+        <div class="box-title">Historical Bytes</div>
+        <div class="chart-wrap"><canvas id="chartHistBytes"></canvas></div>
+      </div>
+    </div>
+    <div class="box">
+      <div class="box-title">Event Log</div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let liveData = null;
+let historyData = [];
+let selectedFlowSwitch = 0;
+let selectedPortSwitch = 0;
+let chartPkts, chartBytes, chartHistPkts, chartHistBytes;
+let pktsHistory = [], bytesHistory = [], timeLabels = [];
+
+// ── Chart setup ────────────────────────────────────────────────────────
+const chartDefaults = {
+  responsive: true, maintainAspectRatio: false,
+  animation: { duration: 600 },
+  plugins: { legend: { display: false }, tooltip: {
+    backgroundColor: '#0d1520', borderColor: 'rgba(0,212,255,0.3)', borderWidth: 1,
+    titleColor: '#00d4ff', bodyColor: '#c8d8e8',
+    titleFont: { family: 'JetBrains Mono', size: 11 },
+    bodyFont: { family: 'JetBrains Mono', size: 11 },
+  }},
+  scales: {
+    x: { grid: { color: 'rgba(0,212,255,0.06)' }, ticks: { color: '#5a7a9a', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+    y: { grid: { color: 'rgba(0,212,255,0.06)' }, ticks: { color: '#5a7a9a', font: { family: 'JetBrains Mono', size: 10 } } }
+  }
+};
+
+function makeChart(id, color, label) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label, data: [],
+        borderColor: color, borderWidth: 2,
+        backgroundColor: color.replace(')', ', 0.08)').replace('rgb', 'rgba'),
+        pointRadius: 3, pointBackgroundColor: color,
+        tension: 0.4, fill: true
+      }]
+    },
+    options: { ...chartDefaults }
+  });
+}
+
+window.addEventListener('load', () => {
+  chartPkts  = makeChart('chartPackets',    'rgb(0,212,255)',  'Packets');
+  chartBytes = makeChart('chartBytes',      'rgb(0,255,157)',  'Bytes');
+  chartHistPkts  = makeChart('chartHistPackets', 'rgb(0,212,255)', 'Packets');
+  chartHistBytes = makeChart('chartHistBytes',   'rgb(0,255,157)', 'Bytes');
+  fetchLive();
+  fetchHistory();
+  setInterval(fetchLive, 5000);
+  setInterval(fetchHistory, 15000);
+});
+
+// ── Fetch ──────────────────────────────────────────────────────────────
+async function fetchLive() {
+  try {
+    const r = await fetch('/api/live');
+    const j = await r.json();
+    if (j.status === 'ok' && j.data) {
+      liveData = j.data;
+      updateStatus(true);
+      renderLive();
+    } else {
+      updateStatus(false, 'No data — is Ryu running?');
+    }
+  } catch(e) {
+    updateStatus(false, 'Cannot reach server');
+  }
+}
+
+async function fetchHistory() {
+  try {
+    const r = await fetch('/api/history');
+    historyData = await r.json();
+    renderHistory();
+  } catch(e) {}
+}
+
+// ── Status ─────────────────────────────────────────────────────────────
+function updateStatus(ok, msg) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const upd  = document.getElementById('lastUpdate');
+  dot.className  = 'status-dot ' + (ok ? 'live' : 'error');
+  text.textContent = ok ? 'Live' : (msg || 'Offline');
+  upd.textContent  = ok ? 'Updated ' + new Date().toLocaleTimeString() : '';
+}
+
+// ── Render Live ────────────────────────────────────────────────────────
+function renderLive() {
+  if (!liveData) return;
+  const switches = liveData.switches || [];
+  const totalFlows   = switches.reduce((a,s) => a + s.flow_count, 0);
+  const totalPackets = switches.reduce((a,s) => a + s.total_packets, 0);
+  const totalBytes   = switches.reduce((a,s) => a + s.total_bytes, 0);
+
+  document.getElementById('cSwitches').textContent = switches.length;
+  document.getElementById('cFlows').textContent    = totalFlows;
+  document.getElementById('cPackets').textContent  = fmtNum(totalPackets);
+  document.getElementById('cBytes').textContent    = fmtBytes(totalBytes);
+
+  // Charts
+  const t = new Date().toLocaleTimeString();
+  if (timeLabels.length > 20) { timeLabels.shift(); pktsHistory.shift(); bytesHistory.shift(); }
+  timeLabels.push(t); pktsHistory.push(totalPackets); bytesHistory.push(totalBytes);
+  chartPkts.data.labels  = [...timeLabels]; chartPkts.data.datasets[0].data  = [...pktsHistory]; chartPkts.update();
+  chartBytes.data.labels = [...timeLabels]; chartBytes.data.datasets[0].data = [...bytesHistory]; chartBytes.update();
+
+  // Per-switch cards
+  const ov = document.getElementById('switchOverview');
+  ov.innerHTML = switches.map(sw => `
+    <div class="card fade-in">
+      <div class="card-label">Switch ${sw.dpid.slice(-4)}</div>
+      <div class="card-value accent">${sw.flow_count}</div>
+      <div class="card-sub">flows &nbsp;·&nbsp; ${fmtBytes(sw.total_bytes)}</div>
+    </div>
+  `).join('') || '<div class="no-data"><div class="no-data-icon">◈</div>No switches connected</div>';
+
+  renderFlowTabs();
+  renderPortTabs();
+}
+
+// ── Flow Table ─────────────────────────────────────────────────────────
+function renderFlowTabs() {
+  if (!liveData) return;
+  const switches = liveData.switches || [];
+  const tabs = document.getElementById('flowSwitchTabs');
+  tabs.innerHTML = switches.map((sw, i) =>
+    `<button class="sw-btn ${i===selectedFlowSwitch?'active':''}" onclick="selectFlowSwitch(${i})">SW ${sw.dpid.slice(-4)}</button>`
+  ).join('');
+  renderFlowTable();
+}
+
+function selectFlowSwitch(i) {
+  selectedFlowSwitch = i;
+  renderFlowTabs();
+}
+
+function renderFlowTable() {
+  const wrap = document.getElementById('flowTableWrap');
+  if (!liveData || !liveData.switches.length) {
+    wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">◈</div>No flow data available</div>';
+    return;
+  }
+  const sw = liveData.switches[selectedFlowSwitch];
+  if (!sw || !sw.flows.length) {
+    wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">◈</div>No flows on this switch</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="flow-table">
+      <thead><tr>
+        <th>Priority</th><th>Packets</th><th>Bytes</th><th>Duration</th><th>Match</th>
+      </tr></thead>
+      <tbody>${sw.flows.map(f => `
+        <tr>
+          <td><span class="badge ${f.priority>0?'badge-green':'badge-blue'}">${f.priority}</span></td>
+          <td>${fmtNum(f.packet_count)}</td>
+          <td>${fmtBytes(f.byte_count)}</td>
+          <td>${f.duration_sec}s</td>
+          <td style="font-size:10px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.match}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── Port Stats ─────────────────────────────────────────────────────────
+function renderPortTabs() {
+  if (!liveData) return;
+  const switches = liveData.switches || [];
+  const tabs = document.getElementById('portSwitchTabs');
+  tabs.innerHTML = switches.map((sw, i) =>
+    `<button class="sw-btn ${i===selectedPortSwitch?'active':''}" onclick="selectPortSwitch(${i})">SW ${sw.dpid.slice(-4)}</button>`
+  ).join('');
+  renderPortStats();
+}
+
+function selectPortSwitch(i) {
+  selectedPortSwitch = i;
+  renderPortTabs();
+}
+
+function renderPortStats() {
+  const wrap = document.getElementById('portStatsWrap');
+  if (!liveData || !liveData.switches.length) {
+    wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">◈</div>No port data</div>';
+    return;
+  }
+  const sw = liveData.switches[selectedPortSwitch];
+  const ports = (sw?.ports || []).filter(p => p.port_no < 4294967294);
+  if (!ports.length) {
+    wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">◈</div>No ports on this switch</div>';
+    return;
+  }
+  const maxBytes = Math.max(...ports.map(p => Math.max(p.rx_bytes, p.tx_bytes)), 1);
+  wrap.innerHTML = ports.map(p => `
+    <div class="port-row">
+      <div class="port-label">
+        <span>Port ${p.port_no} &nbsp; RX</span>
+        <span>${fmtNum(p.rx_packets)} pkts · ${fmtBytes(p.rx_bytes)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill bar-rx" style="width:${(p.rx_bytes/maxBytes*100).toFixed(1)}%"></div></div>
+      <div class="port-label" style="margin-top:4px">
+        <span>Port ${p.port_no} &nbsp; TX</span>
+        <span>${fmtNum(p.tx_packets)} pkts · ${fmtBytes(p.tx_bytes)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill bar-tx" style="width:${(p.tx_bytes/maxBytes*100).toFixed(1)}%"></div></div>
+    </div>
+  `).join('');
+}
+
+// ── History ────────────────────────────────────────────────────────────
+function renderHistory() {
+  if (!historyData.length) return;
+
+  const labels = historyData.map(h => new Date(h.timestamp).toLocaleTimeString());
+  const pkts   = historyData.map(h => (h.data.switches||[]).reduce((a,s)=>a+s.total_packets,0));
+  const bytes  = historyData.map(h => (h.data.switches||[]).reduce((a,s)=>a+s.total_bytes,0));
+
+  chartHistPkts.data.labels  = labels; chartHistPkts.data.datasets[0].data  = pkts;  chartHistPkts.update();
+  chartHistBytes.data.labels = labels; chartHistBytes.data.datasets[0].data = bytes; chartHistBytes.update();
+
+  // Timeline
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = [...historyData].reverse().map(h => {
+    const sw = h.data.switches || [];
+    const tp = sw.reduce((a,s)=>a+s.total_packets,0);
+    const tb = sw.reduce((a,s)=>a+s.total_bytes,0);
+    return `<div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-time">${new Date(h.timestamp).toLocaleTimeString()}</div>
+      <div class="tl-content">${sw.length} switches · <strong>${fmtNum(tp)}</strong> pkts · <strong>${fmtBytes(tb)}</strong></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'flows') renderFlowTable();
+  if (name === 'ports') renderPortStats();
+  if (name === 'history') renderHistory();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+  return (b/1073741824).toFixed(2) + ' GB';
+}
+function fmtNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return n.toString();
+}
+</script>
+</body>
+</html>
