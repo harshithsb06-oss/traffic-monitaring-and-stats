@@ -1,0 +1,173 @@
+{
+  "generated_at": "2026-04-13T08:48:29.671133",
+  "switches": [
+    {
+      "dpid": "0000000000000001",
+      "flow_count": 1,
+      "total_packets": 166,
+      "total_bytes": 25500,
+      "flows": [
+        {
+          "priority": 0,
+          "match": "OFPMatch(oxm_fields={})",
+          "packet_count": 166,
+          "byte_count": 25500,
+          "duration_sec": 338
+        }
+      ],
+      "ports": [
+        {
+          "port_no": 1,
+          "rx_packets": 2507,
+          "tx_packets": 2416,
+          "rx_bytes": 6981614,
+          "tx_bytes": 186035,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 2,
+          "rx_packets": 35,
+          "tx_packets": 190,
+          "rx_bytes": 2642,
+          "tx_bytes": 39143,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 3,
+          "rx_packets": 33,
+          "tx_packets": 186,
+          "rx_bytes": 2466,
+          "tx_bytes": 38847,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 4,
+          "rx_packets": 2364,
+          "tx_packets": 2570,
+          "rx_bytes": 170616,
+          "tx_bytes": 6994486,
+          "rx_dropped": 0,
+          "tx_dropped": 2
+        },
+        {
+          "port_no": 4294967294,
+          "rx_packets": 0,
+          "tx_packets": 0,
+          "rx_bytes": 0,
+          "tx_bytes": 0,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        }
+      ]
+    },
+    {
+      "dpid": "0000000000000002",
+      "flow_count": 1,
+      "total_packets": 168,
+      "total_bytes": 28845,
+      "flows": [
+        {
+          "priority": 0,
+          "match": "OFPMatch(oxm_fields={})",
+          "packet_count": 168,
+          "byte_count": 28845,
+          "duration_sec": 338
+        }
+      ],
+      "ports": [
+        {
+          "port_no": 1,
+          "rx_packets": 34,
+          "tx_packets": 193,
+          "rx_bytes": 2556,
+          "tx_bytes": 42530,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 2,
+          "rx_packets": 2570,
+          "tx_packets": 2364,
+          "rx_bytes": 6994486,
+          "tx_bytes": 170616,
+          "rx_dropped": 0,
+          "tx_dropped": 2
+        },
+        {
+          "port_no": 3,
+          "rx_packets": 2322,
+          "tx_packets": 2616,
+          "rx_bytes": 162435,
+          "tx_bytes": 7006281,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 4294967294,
+          "rx_packets": 0,
+          "tx_packets": 0,
+          "rx_bytes": 0,
+          "tx_bytes": 0,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        }
+      ]
+    },
+    {
+      "dpid": "0000000000000003",
+      "flow_count": 1,
+      "total_packets": 163,
+      "total_bytes": 28455,
+      "flows": [
+        {
+          "priority": 0,
+          "match": "OFPMatch(oxm_fields={})",
+          "packet_count": 163,
+          "byte_count": 28455,
+          "duration_sec": 338
+        }
+      ],
+      "ports": [
+        {
+          "port_no": 1,
+          "rx_packets": 34,
+          "tx_packets": 191,
+          "rx_bytes": 2552,
+          "tx_bytes": 42390,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 2,
+          "rx_packets": 2263,
+          "tx_packets": 2661,
+          "rx_bytes": 149694,
+          "tx_bytes": 7021234,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 3,
+          "rx_packets": 2616,
+          "tx_packets": 2322,
+          "rx_bytes": 7006281,
+          "tx_bytes": 162435,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        },
+        {
+          "port_no": 4294967294,
+          "rx_packets": 0,
+          "tx_packets": 0,
+          "rx_bytes": 0,
+          "tx_bytes": 0,
+          "rx_dropped": 0,
+          "tx_dropped": 0
+        }
+      ]
+    }
+  ]
+}
